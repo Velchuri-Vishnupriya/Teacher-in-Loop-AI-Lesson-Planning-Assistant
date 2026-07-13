@@ -340,7 +340,7 @@ def render_phase2():
     # DOWNLOAD PDF
     # =====================================================
 
-    st.text(st.session_state.lesson_plan)
+    
     pdf = generate_pdf(
     st.session_state.lesson_plan
 )
