@@ -5,9 +5,7 @@ import time
 # Gemini Configuration
 # ============================================================
 
-GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
-
-genai.configure(api_key=GOOGLE_API_KEY)
+API_KEYS = st.secrets["GEMINI_API_KEYS"]
 
 # ============================================================
 # Model Configuration
@@ -26,36 +24,26 @@ GENERATION_CONFIG = {
 # ============================================================
 # Gemini Wrapper
 # ============================================================
-
-def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
+def call_gemini(prompt, model_name=DEFAULT_MODEL):
     """
-    Sends a prompt to Gemini with automatic retries.
+    Sends a prompt to Gemini.
 
-    Parameters
-    ----------
-    prompt : str
-        Prompt sent to Gemini.
-
-    model_name : str
-        Gemini model.
-
-    retries : int
-        Number of retry attempts.
-
-    Returns
-    -------
-    str
-        Gemini response text.
+    Automatically rotates through multiple API keys
+    if a quota/rate-limit error occurs.
     """
 
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config=GENERATION_CONFIG
-    )
+    last_exception = None
 
-    for attempt in range(retries):
+    for api_key in API_KEYS:
 
         try:
+
+            genai.configure(api_key=api_key)
+
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                generation_config=GENERATION_CONFIG
+            )
 
             response = model.generate_content(prompt)
 
@@ -64,12 +52,26 @@ def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
 
         except Exception as e:
 
-            if attempt == retries - 1:
-                raise e
+            last_exception = e
 
-            time.sleep(2)
+            error = str(e).lower()
 
-    return ""
+            if (
+                "429" in error
+                or "quota" in error
+                or "resource exhausted" in error
+                or "rate limit" in error
+            ):
+
+                print("Quota reached. Switching API key...")
+
+                continue
+
+            raise e
+
+    raise Exception(
+        "All configured Gemini API keys have exhausted their quota."
+    ) from last_exception
 
 
 # ============================================================
@@ -126,16 +128,26 @@ FRAMEWORK_STAGES = {
 
 ROLE_PROMPT = """
 You are an expert instructional designer, curriculum planner,
-and experienced classroom teacher.
+experienced CBSE educator and teacher educator.
 
-Your responsibility is to generate lesson plans that are:
+Your responsibility is to design classroom-ready lesson plans
+for CBSE schools using the 5E Learning Cycle.
 
-• Educationally sound
-• Practical for real classrooms
-• Easy for teachers to scan quickly
-• Ready for classroom implementation
+Every lesson must:
 
-The lesson should assist teachers,
+• Follow SMART learning objectives.
+• Demonstrate Constructive Alignment between objectives,
+  activities and assessment.
+• Apply Merrill's First Principles of Instruction:
+    - Activation
+    - Demonstration
+    - Application
+    - Integration
+• Encourage active student participation.
+• Promote higher-order thinking wherever appropriate.
+• Be practical enough for immediate classroom implementation.
+
+The lesson should support teachers,
 not replace their professional judgement.
 """
 
@@ -143,39 +155,55 @@ not replace their professional judgement.
 DESIGN_PRINCIPLES = """
 DESIGN PRINCIPLES
 
-1. Educational quality is always the highest priority.
+1. Educational quality is the highest priority.
 
-2. Generate concise content instead of lengthy paragraphs.
+2. Every lesson must demonstrate Constructive Alignment.
 
-3. Every section should be dashboard-friendly.
+3. Learning Objectives must be SMART.
 
-4. Avoid repetition.
+4. Activities should directly help achieve the stated objectives.
 
-5. Prefer bullet points over paragraphs.
+5. Assessment should evaluate the stated objectives.
 
-6. Activities should be classroom-oriented.
+6. Apply Merrill's First Principles:
+   • Activate prior knowledge.
+   • Demonstrate new concepts.
+   • Allow guided application.
+   • Encourage integration with prior learning.
 
-7. Teaching strategies must be topic-specific.
+7. Include engaging classroom activities.
 
-8. Lesson flow must strictly follow the selected instructional framework.
+8. Include questioning strategies.
 
-9. Keep every section practical and immediately usable.
+9. Encourage student discussion.
 
-10. The lesson should be editable without affecting its structure.
+10. Include differentiated instruction wherever appropriate.
+
+11. Avoid unnecessary repetition.
+
+12. Keep explanations concise but educationally rich.
+
+13. Every activity must clearly add instructional value.
+
+14. Produce lesson plans suitable for real classroom teaching.
 """
 
 
 OUTPUT_PHILOSOPHY = """
 The lesson is NOT a report.
 
-The lesson is NOT documentation.
+The lesson is NOT textbook content.
 
-The lesson should feel like content prepared for
-professional dashboard cards.
+The lesson should read like a professionally designed lesson
+prepared by an experienced teacher.
 
-Teachers should understand each section within seconds.
+Although concise, every section should contain enough detail
+to immediately guide classroom teaching.
+
+Avoid overly brief bullet points.
+
+Provide meaningful instructional content.
 """
-
 
 # ============================================================
 # Dashboard Content Limits
@@ -185,49 +213,60 @@ CONTENT_LIMITS = """
 CONTENT LIMITS
 
 Lesson Snapshot
-• One value per field
+• One value per field.
 
 Learning Objectives
-• Exactly 3 SMART objectives
+• Exactly 3 SMART objectives.
+• Objectives should include measurable action verbs.
 
 Learner Snapshot
-• Maximum 3 bullets per subsection
+For each subsection:
+• 3–5 concise but meaningful bullet points.
 
 Teaching Strategies
-• Exactly 3 topic-specific strategies
+Provide 3–5 topic-specific strategies.
+
+For each strategy include:
+• Strategy
+• Classroom implementation
+• Expected learning benefit
 
 Lesson Flow
-Each stage contains only:
 
-Goal
+For every 5E stage include:
 
-Activity
-
-Quick Check
+• Stage Goal
+• Teacher Actions
+• Student Activities
+• Guiding Questions
+• Assessment Check
+• Approximate Time
 
 Resources
-• Maximum 5 bullets
+• 5–8 practical classroom resources.
 
 Assessment
-• Maximum 3 quick checks
-• 1 Exit Ticket
+• Include formative assessment throughout.
+• End with one meaningful Exit Ticket.
 
 Reflection
-• Exactly 2 prompts
+• Provide two reflective questions for the teacher.
 
 Homework
-• One meaningful extension activity
+• Include one meaningful extension activity.
 
 Teacher Notes
-• Short practical notes only
+• Include practical implementation tips.
 """
-
 
 # ============================================================
 # Output Contract
 # ============================================================
 
 OUTPUT_CONTRACT = """
+Generate a complete classroom-ready lesson plan with
+well-developed instructional content while maintaining
+the required structure.
 Return the lesson using ONLY the following headings.
 
 LESSON SNAPSHOT
@@ -418,12 +457,23 @@ Known Learning Difficulties:
 {DESIGN_PRINCIPLES}
 
 {OUTPUT_PHILOSOPHY}
+IMPORTANT
+
+Assume every lesson is for:
+
+Board:
+CBSE (NCERT)
+
+Instructional Framework:
+5E Learning Cycle
+
+Do not generate content for any other curriculum or framework.
 
 {CONTENT_LIMITS}
 
 {teacher_input}
 """
-        # --------------------------------------------------------
+    # --------------------------------------------------------
     # Lesson Generation Instructions (Part B)
     # --------------------------------------------------------
 
@@ -608,7 +658,6 @@ Rules
 • Place "Estimated Time" on a separate line.
 • Place "Teacher Activities" on a separate line.
 • Do not merge headings onto the same line.
-• Strictly do not include "Student Activities" or "Quick Checks".
 
 For every framework stage, follow this format exactly.
 
@@ -1214,7 +1263,7 @@ Consider whether the lesson naturally reflects:
 
 • SMART Objectives
 • Bloom's Taxonomy
-• Merrill's First Principles
+• Merrill's First Principles`
 
 ============================================================
 YOUR RESPONSE
@@ -1259,3 +1308,140 @@ Do not include markdown.
         prompt=prompt,
         model_name=DEFAULT_MODEL
     )
+
+# ============================================================
+# Generic Conversational LLM
+# ============================================================
+
+def chat_with_generic_llm(chat_history):
+    """
+    Generic conversational interface used for the
+    Generic-LLM experimental condition.
+    """
+
+    system_prompt = """
+You are an experienced instructional designer and classroom teacher helping another teacher prepare a lesson.
+
+Respond naturally and conversationally.
+
+Ask clarification questions whenever important information is missing.
+
+When the teacher requests a lesson plan, generate a complete, classroom-ready lesson plan.
+
+Continue the conversation naturally using the previous conversation history.
+"""
+
+    conversation = system_prompt + "\n\n"
+
+    for message in chat_history:
+
+        role = message["role"]
+
+        if role == "user":
+
+            conversation += f"Teacher:\n{message['content']}\n\n"
+
+        else:
+
+            conversation += f"Assistant:\n{message['content']}\n\n"
+
+    return call_gemini(conversation)
+
+# =====================================================
+# AI LESSON REFINEMENT
+# =====================================================
+
+def refine_lesson_with_ai(current_lesson, teacher_request):
+    """
+    Refines an existing lesson plan based on the teacher's request.
+
+    Returns
+    -------
+    changes_made : str
+        The exact content that was added/modified/deleted.
+
+    updated_lesson : str
+        The complete updated lesson plan.
+    """
+
+    prompt = f"""
+You are an expert instructional designer.
+
+A complete lesson plan has already been generated.
+
+Your task is ONLY to refine the lesson according to the teacher's request.
+
+Current Lesson Plan
+===================
+
+{current_lesson}
+
+Teacher's Refinement Request
+============================
+
+{teacher_request}
+
+Instructions
+
+1. Modify ONLY what the teacher requested.
+2. Preserve everything else.
+3. Keep the same lesson structure and section headings.
+4. Return BOTH the modified content and the complete updated lesson.
+5. DO NOT summarize the changes.
+6. DO NOT simply say "Lesson updated."
+7. Show the ACTUAL modified content exactly as it should appear in the lesson.
+8. Return plain text only.
+
+Return your response EXACTLY in this format.
+
+=== CHANGES MADE ===
+
+Show ONLY the content that was added, removed or modified.
+
+If a section was modified, show the updated version of ONLY that section.
+
+=== UPDATED LESSON ===
+
+Return the COMPLETE updated lesson plan.
+
+The updated lesson MUST still contain these headings exactly:
+
+LESSON SNAPSHOT
+
+LEARNING OBJECTIVES
+
+LEARNER SNAPSHOT
+
+TEACHING STRATEGIES
+
+LESSON FLOW
+
+RESOURCES
+
+ASSESSMENT
+
+REFLECTION
+
+HOMEWORK
+
+TEACHER NOTES
+"""
+
+    response = call_gemini(prompt)
+
+    changes = ""
+    updated_lesson = response
+
+    if "=== UPDATED LESSON ===" in response:
+
+        parts = response.split("=== UPDATED LESSON ===", 1)
+
+        changes = (
+            parts[0]
+            .replace("=== CHANGES MADE ===", "")
+            .strip()
+        )
+
+        updated_lesson = parts[1].strip()
+
+    return changes, updated_lesson

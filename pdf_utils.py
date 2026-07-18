@@ -2,6 +2,7 @@ from io import BytesIO
 import re
 import html
 from xhtml2pdf import pisa
+import markdown
 
 
 # -------------------------------------------------------
@@ -310,7 +311,73 @@ def build_html(lesson_plan: str):
 
     return html_output
 
+def build_generic_html(lesson_plan: str):
 
+    css = """
+    <style>
+
+    @page{
+        size:A4;
+        margin:22px;
+    }
+
+    body{
+        font-family:Helvetica, Arial, sans-serif;
+        font-size:13px;
+        color:#333333;
+        line-height:1.6;
+    }
+
+    h1{
+        color:#1F4E79;
+        text-align:center;
+    }
+
+    h2,h3,h4{
+        color:#1F4E79;
+    }
+
+    table{
+        border-collapse:collapse;
+        width:100%;
+        margin:10px 0;
+    }
+
+    table, th, td{
+        border:1px solid #888;
+    }
+
+    th, td{
+        padding:6px;
+    }
+
+    ul{
+        margin-left:20px;
+    }
+
+    </style>
+    """
+
+    html_body = markdown.markdown(
+        lesson_plan,
+        extensions=["tables"]
+    )
+
+    return f"""
+    <html>
+
+    <head>
+    {css}
+    </head>
+
+    <body>
+
+    {html_body}
+
+    </body>
+
+    </html>
+    """
 # -------------------------------------------------------
 # PDF Generator
 # -------------------------------------------------------
@@ -318,6 +385,25 @@ def build_html(lesson_plan: str):
 def generate_pdf(lesson_plan):
 
     html_content = build_html(lesson_plan)
+
+    buffer = BytesIO()
+
+    pdf = pisa.CreatePDF(
+        src=html_content,
+        dest=buffer,
+        encoding="UTF-8"
+    )
+
+    if pdf.err:
+        raise Exception("PDF generation failed.")
+
+    buffer.seek(0)
+
+    return buffer
+
+def generate_generic_pdf(lesson_plan):
+
+    html_content = build_generic_html(lesson_plan)
 
     buffer = BytesIO()
 

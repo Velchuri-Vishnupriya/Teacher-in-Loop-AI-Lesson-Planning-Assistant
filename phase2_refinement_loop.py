@@ -1,6 +1,7 @@
 import streamlit as st
 
 from pdf_utils import generate_pdf
+from gemini_utils import refine_lesson_with_ai
 
 from lesson_parser_v2 import (
     parse_lesson_plan_v2,
@@ -8,6 +9,7 @@ from lesson_parser_v2 import (
 
 from logging_utils import (
     log_event,
+    save_research_session,
 )
 
 # =====================================================
@@ -154,7 +156,8 @@ def render_phase2():
     lesson = parse_lesson_plan_v2(
         st.session_state.lesson_plan
     )
-
+    if "refinement_chat_history" not in st.session_state:
+        st.session_state.refinement_chat_history = []
     # ---------- DEBUG ----------
     #st.subheader("Raw Gemini Lesson")
     #st.text_area(
@@ -257,7 +260,7 @@ def render_phase2():
     )
 
     st.divider()
-        # =====================================================
+    # =====================================================
     # AI REVIEW
     # =====================================================
 
@@ -277,65 +280,83 @@ def render_phase2():
         )
 
     st.divider()
-
     # =====================================================
-    # EDIT LESSON PLAN
+    # AI CONVERSATIONAL REFINEMENT
     # =====================================================
 
-    if "show_editor" not in st.session_state:
-        st.session_state.show_editor = False
+    st.subheader("🤖 AI Conversational Refinement")
 
-    st.subheader("✏️ Lesson Editing")
+    st.info(
+        "Ask the AI to improve the generated lesson plan. "
+        "Each request updates the lesson while preserving the previous conversation."
+    )
 
-    if not st.session_state.show_editor:
+    # -----------------------------
+    # Display refinement history
+    # -----------------------------
 
-        if st.button(
-            "Edit Lesson Plan",
-            use_container_width=True,
-        ):
-            st.session_state.show_editor = True
-            st.rerun()
+    for message in st.session_state.refinement_chat_history:
 
-    else:
+        with st.chat_message(message["role"]):
 
-        edited_plan = st.text_area(
-            "Edit Lesson Plan",
-            value=st.session_state.lesson_plan,
-            height=500,
-            key="edited_lesson_plan",
+            st.markdown(message["content"])
+
+    # -----------------------------
+    # Teacher refinement request
+    # -----------------------------
+
+    teacher_request = st.chat_input(
+        "Ask AI to improve this lesson..."
+    )
+
+    if teacher_request:
+
+        st.session_state.refinement_chat_history.append(
+            {
+                "role": "user",
+                "content": teacher_request,
+            }
         )
 
-        save_col, cancel_col = st.columns(2)
+        with st.spinner("Updating lesson..."):
 
-        with save_col:
+            changes, updated_lesson = refine_lesson_with_ai(
+    current_lesson=st.session_state.lesson_plan,
+    teacher_request=teacher_request,
+)
 
-            if st.button(
-                "💾 Save Changes",
-                use_container_width=True,
-            ):
+        st.session_state.lesson_plan = updated_lesson
 
-                st.session_state.lesson_plan = edited_plan
-                log_event("LESSON_EDITED")
-                st.session_state.show_editor = False
+        st.session_state.refinement_chat_history.append(
+    {
+        "role": "assistant",
+        "content": changes
+    }
+)
 
-                st.success(
-                    "Lesson plan updated successfully."
-                )
-
-                st.rerun()
-
-        with cancel_col:
-
-            if st.button(
-                "❌ Cancel",
-                use_container_width=True,
-            ):
-
-                st.session_state.show_editor = False
-                st.rerun()
+        st.rerun()
 
     st.divider()
 
+    # =====================================================
+    # SAVE FINAL LESSON
+    # =====================================================
+
+    if st.button(
+        "💾 Save Final Lesson",
+        use_container_width=True,
+    ):
+
+        save_research_session(
+            inputs=st.session_state.lesson_inputs,
+            lesson_plan=st.session_state.lesson_plan,
+            refined_lesson=st.session_state.lesson_plan,
+            conversation_history=st.session_state.refinement_chat_history,
+        )
+
+        log_event("LESSON_REFINED")
+
+    st.success("Final lesson saved successfully.")
     # =====================================================
     # DOWNLOAD PDF
     # =====================================================

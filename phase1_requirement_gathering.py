@@ -10,28 +10,8 @@ from gemini_utils import (
 from logging_utils import (
     create_session_id,
     log_event,
+    save_research_session,
 )
-
-# =====================================================
-# FRAMEWORK DISPLAY NAMES
-# =====================================================
-
-FRAMEWORK_DISPLAY = {
-    "5E Model": "5E Learning Cycle",
-    "BOPPPS": (
-        "BOPPPS "
-        "(Bridge-In, Objectives, Pre-Assessment, "
-        "Participatory Learning, Post-Assessment, Summary)"
-    ),
-    "Gagne's Nine Events": "Gagné's Nine Events of Instruction",
-    "Madeline Hunter": "Madeline Hunter Lesson Plan Model",
-}
-
-DISPLAY_TO_KEY = {
-    value: key
-    for key, value in FRAMEWORK_DISPLAY.items()
-}
-
 
 def render_phase1():
 
@@ -58,6 +38,15 @@ def render_phase1():
     if "lesson_review" not in st.session_state:
         st.session_state.lesson_review = ""
 
+    st.subheader("Teacher Information")
+
+    teacher_name = st.text_input(
+        "Teacher Name"
+    )
+
+    st.session_state.teacher_name = teacher_name
+    st.session_state.condition = "Scaffolded"
+
     # =====================================================
     # LESSON INFORMATION
     # =====================================================
@@ -79,26 +68,18 @@ def render_phase1():
     lesson_duration = st.text_input(
         "Lesson Duration"
     )
-
-    board = st.selectbox(
+    board = "CBSE"
+    st.text_input(
     "Board / Curriculum",
-    [
-        "CBSE (NCERT)",
-        "ICSE",
-        "IB",
-        "IGCSE",
-        "Cambridge"
-    ]
-    )
-
-    framework_display = st.selectbox(
-    "Instructional Framework",
-    options=list(FRAMEWORK_DISPLAY.values()),
+    value="CBSE",
+    disabled=True,
 )
-
-    framework = DISPLAY_TO_KEY[
-    framework_display
-]
+    framework = "5E Model"
+    st.text_input(
+    "Instructional Framework",
+    value="5E Learning Cycle",
+    disabled=True,
+)
 
     # =====================================================
     # LEARNING OBJECTIVES
@@ -109,7 +90,6 @@ def render_phase1():
     learning_objective = st.text_area(
         "Learning Objective / Key Concept"
     )
-
     # =====================================================
     # LEARNER INFORMATION
     # =====================================================
@@ -117,13 +97,12 @@ def render_phase1():
     st.subheader("Learner Information")
 
     # -----------------------------------------------------
-    # PRIOR KNOWLEDGE
+    # Generate AI Learner Profile
     # -----------------------------------------------------
 
-    st.markdown("### Prior Knowledge")
-
     if st.button(
-        "Generate Prior Knowledge Suggestions"
+        "Generate AI Learner Profile",
+        use_container_width=True,
     ):
 
         if not topic.strip():
@@ -135,166 +114,114 @@ def render_phase1():
         else:
 
             with st.spinner(
-                "Generating suggestions..."
+                "Generating learner profile..."
             ):
 
                 try:
 
-                    st.session_state[
-                        "prior_knowledge_ai"
-                    ] = generate_ai_suggestions(
-                        suggestion_type="Prior Knowledge",
+                    learner_profile = generate_ai_suggestions(
+                        suggestion_type="Learner Profile",
                         grade_level=grade_level,
                         subject=subject,
                         topic=topic,
-                        board=board
+                        board=board,
                     )
+
+                    st.session_state.learner_profile = learner_profile
+                    st.session_state.show_profile = True
+
+                    # Parse sections for lesson generation
+
+                    sections = learner_profile.split("###")
+
+                    prior = ""
+                    misconceptions_ai = ""
+                    difficulties = ""
+
+                    for section in sections:
+
+                        section = section.strip()
+
+                        if section.startswith("Prior Knowledge"):
+
+                            prior = section.replace(
+                                "Prior Knowledge",
+                                ""
+                            ).strip()
+
+                        elif section.startswith(
+                            "Common Misconceptions"
+                        ):
+
+                            misconceptions_ai = section.replace(
+                                "Common Misconceptions",
+                                ""
+                            ).strip()
+
+                        elif section.startswith(
+                            "Learning Difficulties"
+                        ):
+
+                            difficulties = section.replace(
+                                "Learning Difficulties",
+                                ""
+                            ).strip()
+
+                    st.session_state.prior_knowledge_ai = prior
+                    st.session_state.misconceptions_ai = misconceptions_ai
+                    st.session_state.learning_difficulties_ai = difficulties
 
                 except Exception as e:
 
-                    st.error(f"Error: {e}")
+                    st.error(e)
 
-    if st.session_state.get(
-        "prior_knowledge_ai",
-        "",
-    ):
+    # -----------------------------------------------------
+    # AI Suggestions Popup
+    # -----------------------------------------------------
 
-        st.success(
-            "AI suggestions generated."
-        )
+    if st.session_state.get("show_profile", False):
 
-        st.text_area(
-            "AI Suggested Prior Knowledge",
-            value=st.session_state[
-                "prior_knowledge_ai"
-            ],
-            height=180,
-            disabled=True,
-        )
+        @st.dialog("AI Suggested Learner Profile")
+        def learner_profile_dialog():
+
+            st.markdown(
+                st.session_state.learner_profile
+            )
+
+            if st.button(
+                "Close",
+                use_container_width=True,
+            ):
+
+                st.session_state.show_profile = False
+                st.rerun()
+
+        learner_profile_dialog()
+
+    # -----------------------------------------------------
+    # Teacher Additions
+    # -----------------------------------------------------
+
+    st.markdown("### Additional Prior Knowledge")
 
     prior_knowledge = st.text_area(
-        "Additional Prior Knowledge (Optional)"
+        "Additional Prior Knowledge (Optional)",
+        height=120,
     )
-        # -----------------------------------------------------
-    # COMMON MISCONCEPTIONS
-    # -----------------------------------------------------
 
-    st.markdown("### Common Misconceptions")
-
-    if st.button(
-        "Generate Misconception Suggestions"
-    ):
-
-        if not topic.strip():
-
-            st.warning(
-                "Please enter the lesson topic first."
-            )
-
-        else:
-
-            with st.spinner(
-                "Generating suggestions..."
-            ):
-
-                try:
-
-                    st.session_state[
-                        "misconceptions_ai"
-                    ] = generate_ai_suggestions(
-                        suggestion_type="Common Misconceptions",
-                        grade_level=grade_level,
-                        subject=subject,
-                        topic=topic,
-                        board=board
-                    )
-
-                except Exception as e:
-
-                    st.error(f"Error: {e}")
-
-    if st.session_state.get(
-        "misconceptions_ai",
-        "",
-    ):
-
-        st.success(
-            "AI suggestions generated."
-        )
-
-        st.text_area(
-            "AI Suggested Common Misconceptions",
-            value=st.session_state[
-                "misconceptions_ai"
-            ],
-            height=180,
-            disabled=True,
-        )
+    st.markdown("### Additional Misconceptions")
 
     misconceptions = st.text_area(
-        "Additional Misconceptions (Optional)"
+        "Additional Misconceptions (Optional)",
+        height=120,
     )
 
-    # -----------------------------------------------------
-    # LEARNING DIFFICULTIES
-    # -----------------------------------------------------
-
-    st.markdown("### Learning Difficulties")
-
-    if st.button(
-        "Generate Learning Difficulty Suggestions"
-    ):
-
-        if not topic.strip():
-
-            st.warning(
-                "Please enter the lesson topic first."
-            )
-
-        else:
-
-            with st.spinner(
-                "Generating suggestions..."
-            ):
-
-                try:
-
-                    st.session_state[
-                        "learning_difficulties_ai"
-                    ] = generate_ai_suggestions(
-                        suggestion_type="Learning Difficulties",
-                        grade_level=grade_level,
-                        subject=subject,
-                        topic=topic,
-                        board=board
-                    )
-
-                except Exception as e:
-
-                    st.error(f"Error: {e}")
-
-    if st.session_state.get(
-        "learning_difficulties_ai",
-        "",
-    ):
-
-        st.success(
-            "AI suggestions generated."
-        )
-
-        st.text_area(
-            "AI Suggested Learning Difficulties",
-            value=st.session_state[
-                "learning_difficulties_ai"
-            ],
-            height=180,
-            disabled=True,
-        )
+    st.markdown("### Additional Learning Difficulties")
 
     learning_difficulties = st.text_area(
-        "Additional Learning Difficulties (Optional)"
-    )
-
+        "Additional Learning Difficulties (Optional)",
+        height=120,
+    )           
     # =====================================================
     # STORE INPUTS
     # =====================================================
@@ -341,6 +268,7 @@ def render_phase1():
             + learning_difficulties,
 
     }
+    st.session_state.lesson_inputs = inputs
 
     # =====================================================
     # OPTIONAL AI CLARIFICATION QUESTIONS
@@ -368,6 +296,7 @@ def render_phase1():
 
             required_fields = [
                 grade_level,
+                teacher_name,
                 subject,
                 topic,
                 learning_objective,
@@ -585,9 +514,20 @@ def render_phase1():
                     st.stop()
 
                 st.session_state.lesson_plan = lesson_plan
+
+                # Save the original AI-generated lesson
+                st.session_state.initial_lesson = lesson_plan
+
                 log_event(
                     "LESSON_GENERATED"
                 )
+                save_research_session(
+    inputs=inputs,
+    lesson_plan=lesson_plan,
+    teacher_prior_knowledge=prior_knowledge,
+    teacher_misconceptions=misconceptions,
+    teacher_learning_difficulties=learning_difficulties,
+)
 
             except Exception as e:
 

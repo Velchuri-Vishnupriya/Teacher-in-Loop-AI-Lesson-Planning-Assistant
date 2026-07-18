@@ -26,6 +26,16 @@ def initialize_session_state():
         # Future Version Tracking
         "lesson_versions": [],
         "version_count": 0,
+
+        # =====================================================
+        # Research Study Metadata
+        # =====================================================
+        "teacher_name": "",
+        "condition": "",
+        "session_id": "",
+        "session_start_time": "",
+        "current_phase": "",
+        "generic_chat_history": [],
     }
 
     for key, value in defaults.items():
