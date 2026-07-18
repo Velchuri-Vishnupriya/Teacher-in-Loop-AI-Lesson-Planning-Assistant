@@ -5,7 +5,7 @@ import time
 # Gemini Configuration
 # ============================================================
 
-API_KEYS = st.secrets["GEMINI_API_KEYS"]
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 # ============================================================
 # Model Configuration
@@ -24,54 +24,40 @@ GENERATION_CONFIG = {
 # ============================================================
 # Gemini Wrapper
 # ============================================================
-def call_gemini(prompt, model_name=DEFAULT_MODEL):
+DEFAULT_MODEL = "gemini-2.5-flash"
+
+
+def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
     """
-    Sends a prompt to Gemini.
+    Sends a prompt to Gemini using a single API key.
 
-    Automatically rotates through multiple API keys
-    if a quota/rate-limit error occurs.
+    Automatically retries a few times for temporary failures.
     """
 
-    last_exception = None
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-    for api_key in API_KEYS:
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        generation_config=GENERATION_CONFIG
+    )
+
+    for attempt in range(retries):
 
         try:
 
-            genai.configure(api_key=api_key)
-
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                generation_config=GENERATION_CONFIG
-            )
-
             response = model.generate_content(prompt)
 
-            if response.text.strip():
+            if hasattr(response, "text") and response.text.strip():
                 return response.text.strip()
 
         except Exception as e:
 
-            last_exception = e
+            if attempt == retries - 1:
+                raise e
 
-            error = str(e).lower()
+            time.sleep(2)
 
-            if (
-                "429" in error
-                or "quota" in error
-                or "resource exhausted" in error
-                or "rate limit" in error
-            ):
-
-                print("Quota reached. Switching API key...")
-
-                continue
-
-            raise e
-
-    raise Exception(
-        "All configured Gemini API keys have exhausted their quota."
-    ) from last_exception
+    return ""
 
 
 # ============================================================
