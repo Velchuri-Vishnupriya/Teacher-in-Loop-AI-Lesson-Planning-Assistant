@@ -54,23 +54,64 @@ duration = st.text_input("Lesson Duration")
 board = st.text_input("Board / Curriculum")
 st.divider()
 
-if st.button("Start Lesson Planning Session", use_container_width=True):
+st.subheader("Start the Session")
 
-    if not all([teacher_name, grade, subject, topic, duration, board]):
+st.info(
+    "Click 'Start Conversation' to begin planning your lesson with the AI. "
+    "Continue the conversation until you are satisfied, then click "
+    "'Generate Final Lesson Plan'."
+)
 
-        st.warning("Please fill all lesson information.")
+# -------------------------------
+# Display chat history
+# -------------------------------
 
-    else:
+for message in st.session_state.generic_chat_history:
+
+    with st.chat_message(message["role"]):
+
+        st.markdown(message["content"])
+
+# -------------------------------
+# Start Conversation
+# -------------------------------
+
+if len(st.session_state.generic_chat_history) == 0:
+
+    if st.button(
+        "💬 Start Conversation",
+        use_container_width=True,
+    ):
+
+        if not all([teacher_name, grade, subject, topic, duration, board]):
+
+            st.warning("Please fill all lesson information.")
+
+            st.stop()
 
         st.session_state.teacher_name = teacher_name
         st.session_state.condition = "Generic"
-        log_event("SESSION_START")
 
         if not st.session_state.session_id:
+
             st.session_state.session_id = create_session_id()
 
-        initial_prompt = f"""
-I am planning a lesson.
+        log_event("SESSION_START")
+
+        opening_prompt =f"""
+System Prompt (Background Only)
+
+You are an experienced instructional designer and physics teacher helping a colleague plan a classroom lesson.
+
+Respond helpfully and conversationally.
+
+Ask clarifying questions if you need more information.
+
+When asked, provide complete, practical lesson plans suitable for classroom use.
+
+--------------------------------------------------
+
+The teacher has already provided the following lesson information:
 
 Grade Level: {grade}
 
@@ -82,18 +123,30 @@ Lesson Duration: {duration}
 
 Board/Curriculum: {board}
 
-Let's start planning this lesson together.
+--------------------------------------------------
+
+This is the beginning of the conversation.
+
+Do NOT generate the complete lesson plan yet.
+
+Instead:
+
+• Greet the teacher naturally.
+• Acknowledge the lesson information provided.
+• Briefly describe your understanding of the lesson topic.
+• Ask a few relevant questions to understand the teacher's preferences for designing the lesson (for example, teaching approach, classroom activities, assessment, or student engagement).
+• Keep the interaction conversational, similar to ChatGPT or Gemini.
+
+This is the first assistant response in the conversation.
 """
 
-        st.session_state.generic_chat_history = [
-            {
-                "role": "user",
-                "content": initial_prompt
-            }
-        ]
-
         response = chat_with_generic_llm(
-            st.session_state.generic_chat_history
+            [
+                {
+                    "role": "user",
+                    "content": opening_prompt
+                }
+            ]
         )
 
         st.session_state.generic_chat_history.append(
@@ -103,19 +156,15 @@ Let's start planning this lesson together.
             }
         )
 
+        log_event("AI_RESPONSE")
+
         st.rerun()
-st.divider()
 
-st.subheader("Conversation")
+# -------------------------------
+# Continue Conversation
+# -------------------------------
 
-for message in st.session_state.generic_chat_history:
-
-    with st.chat_message(message["role"]):
-
-        st.markdown(message["content"])
-
-# Hide chat input once final lesson has been generated
-if not st.session_state.get("lesson_plan"):
+elif not st.session_state.get("lesson_plan"):
 
     user_message = st.chat_input(
         "Type your message..."
@@ -129,6 +178,7 @@ if not st.session_state.get("lesson_plan"):
                 "content": user_message
             }
         )
+
         log_event("USER_MESSAGE")
 
         response = chat_with_generic_llm(
@@ -141,15 +191,16 @@ if not st.session_state.get("lesson_plan"):
                 "content": response
             }
         )
+
         log_event("AI_RESPONSE")
 
         st.rerun()
-
-st.divider()
-
-if st.button(
-    "📋 Generate Final Lesson Plan",
-    use_container_width=True,
+if (
+    len(st.session_state.generic_chat_history) > 0
+    and st.button(
+        "📋 Generate Final Lesson Plan",
+        use_container_width=True,
+    )
 ):
 
     final_request = """
@@ -189,6 +240,10 @@ Return only the complete lesson plan.
 )
 
     st.rerun()
+
+# -------------------------------------------------------
+# Save / Export
+# -------------------------------------------------------
 if st.session_state.get("lesson_plan"):
 
     st.divider()
@@ -200,23 +255,23 @@ if st.session_state.get("lesson_plan"):
     )
 
     formatted_lesson = (
-    st.session_state.lesson_plan
-    .replace("<br>", "\n")
-    .replace("<br/>", "\n")
-    .replace("<br />", "\n")
-)
+        st.session_state.lesson_plan
+        .replace("<br>", "\n")
+        .replace("<br/>", "\n")
+        .replace("<br />", "\n")
+    )
+
     st.markdown(formatted_lesson)
 
     st.divider()
-# -------------------------------------------------------
-# Save / Export
-# -------------------------------------------------------
-if st.button(
+
+    if st.button(
         "📄 Export as PDF",
         use_container_width=True,
     ):
 
         log_event("PDF_EXPORTED")
+
         pdf = generate_generic_pdf(
             st.session_state.lesson_plan
         )

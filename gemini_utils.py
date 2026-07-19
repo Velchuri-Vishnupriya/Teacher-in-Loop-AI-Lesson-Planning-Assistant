@@ -45,12 +45,24 @@ def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
 
         try:
 
+            print("========== GEMINI REQUEST STARTED ==========")
+
+            import time
+            start_time = time.time()
+
             response = model.generate_content(prompt)
+
+            end_time = time.time()
+
+            print(f"========== GEMINI RESPONSE RECEIVED IN {end_time - start_time:.2f} SECONDS ==========")
 
             if hasattr(response, "text") and response.text.strip():
                 return response.text.strip()
 
         except Exception as e:
+            
+            print("========== GEMINI ERROR ==========")
+            print(str(e))
 
             if attempt == retries - 1:
                 raise e
