@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import time
 # ============================================================
 # Gemini Configuration
@@ -29,16 +30,12 @@ DEFAULT_MODEL = "gemini-2.5-flash"
 
 def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
     """
-    Sends a prompt to Gemini using a single API key.
-
-    Automatically retries a few times for temporary failures.
+    Sends a prompt to Gemini using the new google-genai SDK.
+    Automatically retries temporary failures.
     """
 
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config=GENERATION_CONFIG
+    client = genai.Client(
+        api_key=st.secrets["GEMINI_API_KEY"]
     )
 
     for attempt in range(retries):
@@ -47,31 +44,41 @@ def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
 
             print("========== GEMINI REQUEST STARTED ==========")
 
-            import time
             start_time = time.time()
 
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.4,
+                    top_p=0.9,
+                    top_k=40,
+                    max_output_tokens=8192,
+                ),
+            )
 
             end_time = time.time()
 
-            print(f"========== GEMINI RESPONSE RECEIVED IN {end_time - start_time:.2f} SECONDS ==========")
+            print(
+                f"========== GEMINI RESPONSE RECEIVED IN {end_time-start_time:.2f} SECONDS =========="
+            )
 
-            if hasattr(response, "text") and response.text.strip():
+            if response.text:
                 return response.text.strip()
 
+            return ""
+
         except Exception as e:
-            
+
             print("========== GEMINI ERROR ==========")
-            print(str(e))
+            print(e)
 
             if attempt == retries - 1:
-                raise e
+                raise
 
             time.sleep(2)
 
     return ""
-
-
 # ============================================================
 # Supported Instructional Frameworks
 # ============================================================
