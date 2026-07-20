@@ -36,6 +36,10 @@ def initialize_session_state():
         "session_start_time": "",
         "current_phase": "",
         "generic_chat_history": [],
+        "prior_logged": False,
+        "misconceptions_logged": False,
+        "learning_difficulties_logged": False,
+        "session_started": False,
     }
 
     for key, value in defaults.items():

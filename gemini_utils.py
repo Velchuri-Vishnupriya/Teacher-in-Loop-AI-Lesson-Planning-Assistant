@@ -31,7 +31,6 @@ DEFAULT_MODEL = "gemini-2.5-flash"
 def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
     """
     Sends a prompt to Gemini using the new google-genai SDK.
-    Automatically retries temporary failures.
     """
 
     client = genai.Client(
@@ -48,13 +47,7 @@ def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
 
             response = client.models.generate_content(
                 model=model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.4,
-                    top_p=0.9,
-                    top_k=40,
-                    max_output_tokens=8192,
-                ),
+                contents=prompt
             )
 
             end_time = time.time()
@@ -63,20 +56,30 @@ def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
                 f"========== GEMINI RESPONSE RECEIVED IN {end_time-start_time:.2f} SECONDS =========="
             )
 
-            if response.text:
-                return response.text.strip()
+            print("========== RESPONSE ==========")
+            print(response)
+
+            if hasattr(response, "text") and response.text:
+                return response.text
 
             return ""
-
         except Exception as e:
 
             print("========== GEMINI ERROR ==========")
+            print(type(e))
             print(e)
+
+            # Friendly message for Gemini rate limit
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                st.info(
+                    "The AI service is currently experiencing high demand.\n\n"
+                    "Please wait while we automatically try again..."
+                )
 
             if attempt == retries - 1:
                 raise
 
-            time.sleep(2)
+            time.sleep(2**attempt)
 
     return ""
 # ============================================================

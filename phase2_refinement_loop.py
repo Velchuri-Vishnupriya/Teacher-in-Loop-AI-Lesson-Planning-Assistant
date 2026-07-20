@@ -280,6 +280,14 @@ def render_phase2():
         )
 
     st.divider()
+    def save_current_session():
+
+        save_research_session(
+            inputs=st.session_state.lesson_inputs,
+            lesson_plan=st.session_state.lesson_plan,
+            refined_lesson=st.session_state.lesson_plan,
+            conversation_history=st.session_state.refinement_chat_history,
+        )
     # =====================================================
     # AI CONVERSATIONAL REFINEMENT
     # =====================================================
@@ -333,7 +341,7 @@ def render_phase2():
         "content": changes
     }
 )
-
+        save_current_session()
         st.rerun()
 
     st.divider()

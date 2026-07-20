@@ -54,6 +54,24 @@ duration = st.text_input("Lesson Duration")
 board = st.text_input("Board / Curriculum")
 st.divider()
 
+# -------------------------------------------------------
+# Save Current Research Session
+# -------------------------------------------------------
+
+def save_current_session():
+
+    save_research_session(
+        inputs={
+            "grade_level": grade,
+            "subject": subject,
+            "topic": topic,
+            "lesson_duration": duration,
+            "board": board,
+        },
+        lesson_plan=st.session_state.get("lesson_plan", ""),
+        conversation_history=st.session_state.generic_chat_history,
+    )
+
 st.subheader("Start the Session")
 
 st.info(
@@ -148,17 +166,19 @@ This is the first assistant response in the conversation.
                 }
             ]
         )
-
         st.session_state.generic_chat_history.append(
-            {
-                "role": "assistant",
-                "content": response
-            }
-        )
+    {
+        "role": "assistant",
+        "content": response
+    }
+)
 
         log_event("AI_RESPONSE")
 
+        save_current_session()
+
         st.rerun()
+
 
 # -------------------------------
 # Continue Conversation
@@ -180,6 +200,7 @@ elif not st.session_state.get("lesson_plan"):
         )
 
         log_event("USER_MESSAGE")
+        save_current_session()
 
         response = chat_with_generic_llm(
             st.session_state.generic_chat_history
@@ -193,8 +214,13 @@ elif not st.session_state.get("lesson_plan"):
         )
 
         log_event("AI_RESPONSE")
+        save_current_session()
 
         st.rerun()
+# -------------------------------------------------------
+# Generate Final Lesson Plan
+# -------------------------------------------------------
+
 if (
     len(st.session_state.generic_chat_history) > 0
     and st.button(
@@ -220,27 +246,44 @@ Return only the complete lesson plan.
         }
     )
 
-    final_lesson = chat_with_generic_llm(
-        conversation
-    )
+    final_lesson = chat_with_generic_llm(conversation)
 
     st.session_state.lesson_plan = final_lesson
+
+    # Make sure these are available for logging
+    st.session_state.teacher_name = teacher_name
+    st.session_state.condition = "Generic"
+
     log_event("LESSON_GENERATED")
 
-    save_research_session(
-    inputs={
-        "grade_level": grade,
-        "subject": subject,
-        "topic": topic,
-        "lesson_duration": duration,
-        "board": board,
-    },
-    lesson_plan=final_lesson,
-    conversation_history=st.session_state.generic_chat_history,
-)
+    st.write("✅ Before save_research_session()")
+
+    try:
+
+        save_research_session(
+            inputs={
+                "grade_level": grade,
+                "subject": subject,
+                "topic": topic,
+                "lesson_duration": duration,
+                "board": board,
+            },
+            lesson_plan=final_lesson,
+            conversation_history=st.session_state.generic_chat_history,   # Save full conversation
+        )
+
+        st.success("✅ JSON Saved Successfully")
+        st.write("✅ After save_research_session()")
+
+    except Exception as e:
+
+        import traceback
+
+        traceback.print_exc()
+
+        st.exception(e)
 
     st.rerun()
-
 # -------------------------------------------------------
 # Save / Export
 # -------------------------------------------------------

@@ -180,25 +180,12 @@ def save_research_session(
             "lesson_inputs":
                 inputs,
             "ai_suggestions": {
-
-                "prior_knowledge":
-                    st.session_state.get(
-                        "prior_knowledge_ai",
-                        ""
-                    ),
-
-                "misconceptions":
-                    st.session_state.get(
-                        "misconceptions_ai",
-                        ""
-                    ),
-
-                "learning_difficulties":
-                    st.session_state.get(
-                        "learning_difficulties_ai",
-                        ""
-                    ),
-            },
+    "learner_profile":
+        st.session_state.get(
+            "learner_profile",
+            ""
+        ),
+},
 
             "teacher_additions": {
 
@@ -268,6 +255,8 @@ def save_research_session(
 
     except Exception as e:
 
-        print(
-            f"[Research Logging Error] {e}"
-        )
+        import traceback
+
+        traceback.print_exc()
+
+        st.exception(e)

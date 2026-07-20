@@ -14,17 +14,8 @@ from logging_utils import (
 )
 
 def render_phase1():
-
-    # ----------------------------------------------------
-    # Session Initialization
-    # ----------------------------------------------------
-    if "session_id" not in st.session_state:
-
+    if not st.session_state.session_id:
         st.session_state.session_id = create_session_id()
-
-        log_event(
-            "SESSION_START"
-        )
 
     if "questions_list" not in st.session_state:
         st.session_state.questions_list = []
@@ -47,6 +38,12 @@ def render_phase1():
     st.session_state.teacher_name = teacher_name
     st.session_state.condition = "Scaffolded"
 
+    if (
+    teacher_name.strip()
+    and not st.session_state.session_started
+):
+        log_event("SESSION_START")
+        st.session_state.session_started = True
     # =====================================================
     # LESSON INFORMATION
     # =====================================================
@@ -129,47 +126,11 @@ def render_phase1():
 
                     st.session_state.learner_profile = learner_profile
                     st.session_state.show_profile = True
-
-                    # Parse sections for lesson generation
-
-                    sections = learner_profile.split("###")
-
-                    prior = ""
-                    misconceptions_ai = ""
-                    difficulties = ""
-
-                    for section in sections:
-
-                        section = section.strip()
-
-                        if section.startswith("Prior Knowledge"):
-
-                            prior = section.replace(
-                                "Prior Knowledge",
-                                ""
-                            ).strip()
-
-                        elif section.startswith(
-                            "Common Misconceptions"
-                        ):
-
-                            misconceptions_ai = section.replace(
-                                "Common Misconceptions",
-                                ""
-                            ).strip()
-
-                        elif section.startswith(
-                            "Learning Difficulties"
-                        ):
-
-                            difficulties = section.replace(
-                                "Learning Difficulties",
-                                ""
-                            ).strip()
-
-                    st.session_state.prior_knowledge_ai = prior
-                    st.session_state.misconceptions_ai = misconceptions_ai
-                    st.session_state.learning_difficulties_ai = difficulties
+                    save_research_session(
+    inputs=st.session_state.lesson_inputs,
+    lesson_plan=st.session_state.get("lesson_plan", ""),
+)
+                    
 
                 except Exception as e:
 
@@ -242,33 +203,41 @@ def render_phase1():
 
         "learning_objective": learning_objective,
 
-        "prior_knowledge":
-            st.session_state.get(
-                "prior_knowledge_ai",
-                "",
-            )
-            + "\n"
-            + prior_knowledge,
-       
+        "prior_knowledge": prior_knowledge,
 
-        "misconceptions":
-            st.session_state.get(
-                "misconceptions_ai",
-                "",
-            )
-            + "\n"
-            + misconceptions,
+        "misconceptions": misconceptions,
 
-        "learning_difficulties":
-            st.session_state.get(
-                "learning_difficulties_ai",
-                "",
-            )
-            + "\n"
-            + learning_difficulties,
-
+        "learning_difficulties": learning_difficulties,
     }
     st.session_state.lesson_inputs = inputs
+    if (
+    prior_knowledge.strip()
+    and not st.session_state.prior_logged
+):
+        log_event("PRIOR_KNOWLEDGE_PROVIDED")
+        st.session_state.prior_logged = True
+
+    if (
+    misconceptions.strip()
+    and not st.session_state.misconceptions_logged
+):
+        log_event("MISCONCEPTIONS_PROVIDED")
+        st.session_state.misconceptions_logged = True
+
+    if (
+    learning_difficulties.strip()
+    and not st.session_state.learning_difficulties_logged
+):
+        log_event("LEARNING_DIFFICULTIES_PROVIDED")
+        st.session_state.learning_difficulties_logged = True
+
+    save_research_session(
+    inputs=st.session_state.lesson_inputs,
+    lesson_plan=st.session_state.get("lesson_plan", ""),
+    teacher_prior_knowledge=prior_knowledge,
+    teacher_misconceptions=misconceptions,
+    teacher_learning_difficulties=learning_difficulties,
+)
 
     # =====================================================
     # OPTIONAL AI CLARIFICATION QUESTIONS
@@ -341,15 +310,6 @@ def render_phase1():
 
                     ]
                     
-                    if prior_knowledge.strip():
-                        log_event("PRIOR_KNOWLEDGE_PROVIDED")
-
-                    if misconceptions.strip():
-                        log_event("MISCONCEPTIONS_PROVIDED")
-
-                    if learning_difficulties.strip():
-                        log_event("LEARNING_DIFFICULTIES_PROVIDED")
-
                     log_event("CLARIFICATION_QUESTIONS_GENERATED")
 
                 except Exception as e:
@@ -406,6 +366,7 @@ def render_phase1():
                     )
 
                 st.session_state.answers = answers
+
                 log_event("CLARIFICATION_SUBMITTED")
 
                 st.success(
