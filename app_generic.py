@@ -117,20 +117,13 @@ if len(st.session_state.generic_chat_history) == 0:
         log_event("SESSION_START")
 
         opening_prompt =f"""
-System Prompt (Background Only)
+You are an experienced instructional designer helping a teacher prepare a lesson.
+Generate a complete classroom-ready lesson plan using the following information.
+Create a natural lesson plan suitable for classroom teaching.
 
-You are an experienced instructional designer and physics teacher helping a colleague plan a classroom lesson.
+Do not organize the lesson using any predefined instructional model or framework (such as the 5E instructional model).
 
-Respond helpfully and conversationally.
-
-Ask clarifying questions if you need more information.
-
-When asked, provide complete, practical lesson plans suitable for classroom use.
-
---------------------------------------------------
-
-The teacher has already provided the following lesson information:
-
+Instead, structure the lesson naturally based on the lesson requirements.
 Grade Level: {grade}
 
 Subject: {subject}
@@ -141,22 +134,9 @@ Lesson Duration: {duration}
 
 Board/Curriculum: {board}
 
---------------------------------------------------
-
-This is the beginning of the conversation.
-
-Do NOT generate the complete lesson plan yet.
-
-Instead:
-
-• Greet the teacher naturally.
-• Acknowledge the lesson information provided.
-• Briefly describe your understanding of the lesson topic.
-• Ask a few relevant questions to understand the teacher's preferences for designing the lesson (for example, teaching approach, classroom activities, assessment, or student engagement).
-• Keep the interaction conversational, similar to ChatGPT or Gemini.
-
-This is the first assistant response in the conversation.
+The teacher may later refine this lesson through conversation.
 """
+
 
         response = chat_with_generic_llm(
             [
@@ -230,9 +210,9 @@ if (
 ):
 
     final_request = """
-Based on our complete conversation above, prepare the final classroom-ready lesson plan.
+Using the initial lesson plan and our complete conversation, generate the final classroom-ready lesson plan.
 
-Do not ask further clarification questions.
+Include every agreed modification.
 
 Return only the complete lesson plan.
 """
@@ -294,7 +274,7 @@ if st.session_state.get("lesson_plan"):
     st.subheader("📖 Final Lesson Plan (Preview)")
 
     st.info(
-        "This is the formatted lesson plan. You can edit it below before saving or exporting."
+        "This is the formatted lesson plan. You can export it as PDF."
     )
 
     formatted_lesson = (

@@ -3,9 +3,7 @@ import streamlit as st
 from pdf_utils import generate_pdf
 from gemini_utils import refine_lesson_with_ai
 
-from lesson_parser_v2 import (
-    parse_lesson_plan_v2,
-)
+
 
 from logging_utils import (
     log_event,
@@ -152,10 +150,9 @@ def render_phase2():
 
     if not st.session_state.get("lesson_plan"):
         return
+    
 
-    lesson = parse_lesson_plan_v2(
-        st.session_state.lesson_plan
-    )
+
     if "refinement_chat_history" not in st.session_state:
         st.session_state.refinement_chat_history = []
     # ---------- DEBUG ----------
@@ -173,90 +170,14 @@ def render_phase2():
     )
 
     st.info(
-        "Review the generated lesson plan before editing or downloading."
+        "Scroll down to view the generated lesson plan."
     )
+    st.subheader("Generated Lesson Plan")
 
-        # =====================================================
-    # LESSON SNAPSHOT
-    # =====================================================
-
-    display_snapshot_card(
-        lesson.get("snapshot", {})
-    )
-
-    st.divider()
-
-    # =====================================================
-    # LEARNING OBJECTIVES
-    # =====================================================
-    display_content_card(
-    "Learning Objectives",
-    lesson["learning_objectives"]
-)
-
-    st.divider()
-
-    # =====================================================
-    # LEARNER SNAPSHOT
-    # =====================================================
-    display_content_card(
-        "Learner Snapshot",
-        lesson["learner_snapshot"]
-    )
-    st.divider()
-    # =====================================================
-    # TEACHING STRATEGIES
-    # =====================================================
-    display_strategy_card(
-        lesson["teaching_strategies"]
-    )
-
-    st.divider()
-
-    # =====================================================
-    # LESSON FLOW
-    # =====================================================
-    display_lesson_flow_card(
-        lesson["lesson_flow"]
-    )
-
-    st.divider()
-
-    # =====================================================
-    # RESOURCES
-    # =====================================================
-    display_content_card(
-    "Resources",
-    lesson["resources"]
-)
-
-    st.divider()
-
-    # =====================================================
-    # ASSESSMENT
-    # =====================================================
-    display_content_card(
-        "Assessment",
-        lesson["assessment"]
-    )
-    st.divider()
-
-    display_content_card(
-    "Reflection",
-    lesson["reflection"]
-)
-    st.divider()
-
-    display_content_card(
-        "Homework",
-        lesson["homework"]
-    )
-
-    st.divider()
-
-    display_content_card(
-        "Teacher Notes",
-        lesson["teacher_notes"]
+    with st.container(border=True):
+        st.markdown(
+        st.session_state.lesson_plan,
+        unsafe_allow_html=False
     )
 
     st.divider()

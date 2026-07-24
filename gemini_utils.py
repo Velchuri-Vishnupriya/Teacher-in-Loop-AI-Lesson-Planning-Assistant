@@ -27,65 +27,6 @@ GENERATION_CONFIG = {
 # ============================================================
 DEFAULT_MODEL = "gemini-2.5-flash"
 
-
-def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
-    """
-    Sends a prompt to Gemini using the new google-genai SDK.
-    """
-
-    client = genai.Client(
-        api_key=st.secrets["GEMINI_API_KEY"]
-    )
-
-    for attempt in range(retries):
-
-        try:
-
-            print("========== GEMINI REQUEST STARTED ==========")
-
-            start_time = time.time()
-
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
-
-            end_time = time.time()
-
-            print(
-                f"========== GEMINI RESPONSE RECEIVED IN {end_time-start_time:.2f} SECONDS =========="
-            )
-
-            print("========== RESPONSE ==========")
-            print(response)
-
-            if hasattr(response, "text") and response.text:
-                return response.text
-
-            return ""
-        except Exception as e:
-
-            print("========== GEMINI ERROR ==========")
-            print(type(e))
-            print(e)
-
-            # Friendly message for Gemini rate limit
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                st.info(
-                    "The AI service is currently experiencing high demand.\n\n"
-                    "Please wait while we automatically try again..."
-                )
-
-            if attempt == retries - 1:
-                raise
-
-            time.sleep(2**attempt)
-
-    return ""
-# ============================================================
-# Supported Instructional Frameworks
-# ============================================================
-
 FRAMEWORK_STAGES = {
 
     "5E Model": [
@@ -129,186 +70,75 @@ FRAMEWORK_STAGES = {
     ]
 }
 
+def call_gemini(prompt, model_name=DEFAULT_MODEL, retries=3):
+    """
+    Sends a prompt to Gemini using the new google-genai SDK.
+    """
+    print("\n" + "=" * 80)
 
-# ============================================================
-# Prompt Building Blocks
-# ============================================================
+    print("PROMPT PREVIEW:")
+    print(prompt[:500])
 
-ROLE_PROMPT = """
-You are an expert instructional designer, curriculum planner,
-experienced CBSE educator and teacher educator.
+    print("=" * 80)
+    api_key = st.secrets["GEMINI_API_KEY"]
+    print("API KEY:", type(api_key), repr(api_key))
 
-Your responsibility is to design classroom-ready lesson plans
-for CBSE schools using the 5E Learning Cycle.
-
-Every lesson must:
-
-• Follow SMART learning objectives.
-• Demonstrate Constructive Alignment between objectives,
-  activities and assessment.
-• Apply Merrill's First Principles of Instruction:
-    - Activation
-    - Demonstration
-    - Application
-    - Integration
-• Encourage active student participation.
-• Promote higher-order thinking wherever appropriate.
-• Be practical enough for immediate classroom implementation.
-
-The lesson should support teachers,
-not replace their professional judgement.
-"""
+    client = genai.Client(
+        api_key=api_key
+    )
 
 
-DESIGN_PRINCIPLES = """
-DESIGN PRINCIPLES
+    for attempt in range(retries):
 
-1. Educational quality is the highest priority.
+        try:
 
-2. Every lesson must demonstrate Constructive Alignment.
+            print("========== GEMINI REQUEST STARTED ==========")
 
-3. Learning Objectives must be SMART.
+            start_time = time.time()
 
-4. Activities should directly help achieve the stated objectives.
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
 
-5. Assessment should evaluate the stated objectives.
+            end_time = time.time()
 
-6. Apply Merrill's First Principles:
-   • Activate prior knowledge.
-   • Demonstrate new concepts.
-   • Allow guided application.
-   • Encourage integration with prior learning.
+            print(
+                f"========== GEMINI RESPONSE RECEIVED IN {end_time-start_time:.2f} SECONDS =========="
+            )
+            print("\n========== RESPONSE.TEXT ==========\n")
 
-7. Include engaging classroom activities.
+            if hasattr(response, "text"):
+                print(response.text)
+            else:
+                print("No response.text found")
 
-8. Include questioning strategies.
+            print("\n========== END RESPONSE ==========\n")
 
-9. Encourage student discussion.
+            if hasattr(response, "text") and response.text:
+                return response.text
 
-10. Include differentiated instruction wherever appropriate.
+            return ""
+        except Exception as e:
 
-11. Avoid unnecessary repetition.
+            print("========== GEMINI ERROR ==========")
+            print(type(e))
+            print(e)
 
-12. Keep explanations concise but educationally rich.
+            # Friendly message for Gemini rate limit
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                st.info(
+                    "The AI service is currently experiencing high demand.\n\n"
+                    "Please wait while we automatically try again..."
+                )
 
-13. Every activity must clearly add instructional value.
+            if attempt == retries - 1:
+                raise
 
-14. Produce lesson plans suitable for real classroom teaching.
-"""
+            time.sleep(2**attempt)
 
+    return ""
 
-OUTPUT_PHILOSOPHY = """
-The lesson is NOT a report.
-
-The lesson is NOT textbook content.
-
-The lesson should read like a professionally designed lesson
-prepared by an experienced teacher.
-
-Although concise, every section should contain enough detail
-to immediately guide classroom teaching.
-
-Avoid overly brief bullet points.
-
-Provide meaningful instructional content.
-"""
-
-# ============================================================
-# Dashboard Content Limits
-# ============================================================
-
-CONTENT_LIMITS = """
-CONTENT LIMITS
-
-Lesson Snapshot
-• One value per field.
-
-Learning Objectives
-• Exactly 3 SMART objectives.
-• Objectives should include measurable action verbs.
-
-Learner Snapshot
-For each subsection:
-• 3–5 concise but meaningful bullet points.
-
-Teaching Strategies
-Provide 3–5 topic-specific strategies.
-
-For each strategy include:
-• Strategy
-• Classroom implementation
-• Expected learning benefit
-
-Lesson Flow
-
-For every 5E stage include:
-
-• Stage Goal
-• Teacher Actions
-• Student Activities
-• Guiding Questions
-• Assessment Check
-• Approximate Time
-
-Resources
-• 5–8 practical classroom resources.
-
-Assessment
-• Include formative assessment throughout.
-• End with one meaningful Exit Ticket.
-
-Reflection
-• Provide two reflective questions for the teacher.
-
-Homework
-• Include one meaningful extension activity.
-
-Teacher Notes
-• Include practical implementation tips.
-"""
-
-# ============================================================
-# Output Contract
-# ============================================================
-
-OUTPUT_CONTRACT = """
-Generate a complete classroom-ready lesson plan with
-well-developed instructional content while maintaining
-the required structure.
-Return the lesson using ONLY the following headings.
-
-LESSON SNAPSHOT
-
-LEARNING OBJECTIVES
-
-LEARNER SNAPSHOT
-
-TEACHING STRATEGIES
-
-LESSON FLOW
-
-RESOURCES
-
-ASSESSMENT
-
-REFLECTION
-
-HOMEWORK
-
-TEACHER NOTES
-
-Never rename headings.
-
-Never change their order.
-
-Never add extra sections.
-
-Return plain text only.
-"""
-
-# ============================================================
-# Lesson Generation
-# ============================================================
 def generate_lesson_plan(
     grade_level,
     subject,
@@ -323,660 +153,154 @@ def generate_lesson_plan(
     questions_list,
     answers,
 ):
-    """
-    Generates a complete AI lesson plan.
-
-    The lesson is designed for a professional teacher dashboard.
-    It prioritizes educational quality while keeping the presentation
-    concise, topic-specific and easy to scan.
-    """
-
-    # --------------------------------------------------------
-    # Framework Stages
-    # --------------------------------------------------------
-
-    stages = FRAMEWORK_STAGES.get(
-        framework,
-        []
-    )
-
-    formatted_stages = "\n".join(
-        f"- {stage}" for stage in stages
-    )
-
-    # --------------------------------------------------------
-    # Normalize Teacher Inputs
-    # --------------------------------------------------------
-
-    grade_level = str(grade_level).strip()
-
-    subject = str(subject).strip()
-
-    topic = str(topic).strip()
-
-    lesson_duration = str(lesson_duration).strip()
-    board = str(board).strip()
-
-    framework = str(framework).strip()
-
-    learning_objective = (
-        str(learning_objective).strip()
-        if learning_objective
-        else "Generate appropriate SMART learning objectives."
-    )
-
-    prior_knowledge = (
-        str(prior_knowledge).strip()
-        if prior_knowledge
-        else "Not specified."
-    )
-
-    misconceptions = (
-        str(misconceptions).strip()
-        if misconceptions
-        else "Not specified."
-    )
-
-    learning_difficulties = (
-        str(learning_difficulties).strip()
-        if learning_difficulties
-        else "Not specified."
-    )
-
-    # --------------------------------------------------------
-    # Teacher Clarifications
-    # --------------------------------------------------------
 
     clarification_section = ""
 
-    if questions_list:
+    if questions_list and answers:
+        clarification_pairs = []
 
-        clarification_section += (
-            "\nADDITIONAL TEACHER CLARIFICATIONS\n\n"
-        )
-
-        for i, question in enumerate(questions_list):
-
-            answer = ""
-
-            if answers and i < len(answers):
-                answer = answers[i].strip()
-
-            if not answer:
-                answer = "Not provided."
-
-            clarification_section += (
-                f"Question {i + 1}:\n"
-                f"{question}\n"
-                f"Teacher Response:\n"
-                f"{answer}\n\n"
+        for q, a in zip(questions_list, answers):
+            clarification_pairs.append(
+                f"{q}\nTeacher Response: {a}"
             )
 
-    # --------------------------------------------------------
-    # Teacher Inputs
-    # --------------------------------------------------------
+        clarification_section = "\n\n".join(
+            clarification_pairs
+        )
 
-    teacher_input = f"""
-TEACHER INPUTS
+    prompt = f"""
+You are an experienced instructional designer helping a teacher prepare a classroom lesson.
 
-Grade Level:
-{grade_level}
+Generate the complete lesson plan now.
 
-Subject:
-{subject}
+Do NOT analyse, critique, review or provide suggestions.
 
-Topic:
-{topic}
+Output ONLY the lesson plan.
 
-Lesson Duration:
-{lesson_duration}
+=====================================================================
+LESSON INFORMATION
+=====================================================================
 
-Board / Curriculum:
-{board}
+Grade Level: {grade_level}
 
-Instructional Framework:
-{framework}
+Subject: {subject}
 
-Framework Stages:
-{formatted_stages}
+Topic: {topic}
 
-Teacher Learning Objective:
+Lesson Duration: {lesson_duration}
+
+Board/Curriculum: {board}
+
+Instructional Framework: {framework}
+
+Learning Objective / Key Concept:
 {learning_objective}
 
-Known Prior Knowledge:
+=====================================================================
+TEACHER INPUTS
+=====================================================================
+
+Prior Knowledge:
 {prior_knowledge}
 
-Known Misconceptions:
+Common Misconceptions:
 {misconceptions}
 
-Known Learning Difficulties:
+Learning Difficulties:
 {learning_difficulties}
+"""
+
+    if clarification_section:
+        prompt += f"""
+
+Additional Teacher Clarifications:
 
 {clarification_section}
 """
 
-    # --------------------------------------------------------
-    # Prompt Foundation
-    # --------------------------------------------------------
-
-    prompt = f"""
-{ROLE_PROMPT}
-
-{DESIGN_PRINCIPLES}
-
-{OUTPUT_PHILOSOPHY}
-IMPORTANT
-
-Assume every lesson is for:
-
-Board:
-CBSE (NCERT)
-
-Instructional Framework:
-5E Learning Cycle
-
-Do not generate content for any other curriculum or framework.
-
-{CONTENT_LIMITS}
-
-{teacher_input}
-"""
-    # --------------------------------------------------------
-    # Lesson Generation Instructions (Part B)
-    # --------------------------------------------------------
-
     prompt += """
 
-============================================================
-YOUR TASK
-============================================================
+=====================================================================
+INSTRUCTIONS
+=====================================================================
 
-Generate a complete classroom-ready lesson plan for the teacher.
+Design a practical, classroom-ready lesson plan that:
 
-The lesson should:
+• strictly follows the selected instructional framework
+• if the framework is 5E, organize the lesson into Engage, Explore, Explain, Elaborate and Evaluate
+• incorporates all teacher inputs naturally
+• writes 3–5 SMART learning objectives using one measurable Bloom's verb per objective
+• aligns learning objectives, teaching activities and assessments (Constructive Alignment)
+• applies Merrill's First Principles by:
+  - activating prior knowledge
+  - using a real-world or meaningful context
+  - demonstrating new concepts
+  - providing guided student application
+  - encouraging reflection and transfer of learning
+• addresses misconceptions and learning difficulties
+• promotes active student participation
+• includes formative assessment during the lesson and a summative assessment at the end
+• provides concise teacher notes and reflection prompts
 
-• be educationally strong
-• be easy to scan
-• avoid unnecessary text
-• be immediately usable in a classroom
-• be suitable for a professional dashboard
+=====================================================================
+OUTPUT TEMPLATE
+=====================================================================
 
-Never write long paragraphs.
+Begin immediately with the headings below.
 
-Prefer concise bullets wherever appropriate.
-============================================================
-CURRICULUM ALIGNMENT
-============================================================
+## Lesson Snapshot
 
-Design the lesson according to the selected Board/Curriculum.
+Provide:
+- Lesson Title
+- Grade
+- Subject
+- Topic
+- Duration
+- Board
+- Framework
 
-Requirements:
+## Learning Objectives
 
-• Align concepts with the selected curriculum.
+## Learner Snapshot
 
-• Use terminology commonly used in that curriculum.
+Summarize:
+- Prior Knowledge
+- Common Misconceptions
+- Learning Difficulties
 
-• Ensure learning objectives reflect curriculum expectations.
+## Topic-Specific Teaching Strategies
 
-• Design classroom activities suitable for that curriculum.
+## Lesson Flow
 
-• Generate assessments aligned with that curriculum.
+If the selected framework is 5E, organize as:
 
-• Do not mix content from different curricula.
+### Engage
+### Explore
+### Explain
+### Elaborate
+### Evaluate
 
-• Maintain grade-level appropriateness for the selected board.
+## Resources
 
-============================================================
-LESSON SNAPSHOT
-============================================================
+## Assessment
 
-Generate ONLY the following fields.
+## Reflection
 
-Title:
-Subject:
-Grade:
-Board:
-Topic:
-Duration:
-Instructional Framework:
+## Homework
 
-Keep every value short.
+## Teacher Notes
 
-============================================================
-LEARNING OBJECTIVES
-============================================================
+Keep the lesson concise, practical and classroom-ready.
 
-Generate EXACTLY THREE SMART learning objectives.
+Begin directly with:
 
-Each objective must:
-
-• start with a measurable Bloom's verb
-• be one concise sentence
-• be measurable
-• align with lesson activities
-• align with assessment
-
-Avoid vague objectives.
-
-============================================================
-LEARNER SNAPSHOT
-============================================================
-
-Generate ONLY the following format exactly.
-
-Prior Knowledge
-
-• Bullet 1
-• Bullet 2
-• Bullet 3
-
-Misconceptions
-
-• Bullet 1
-• Bullet 2
-• Bullet 3
-
-Learning Difficulties
-
-• Bullet 1
-• Bullet 2
-• Bullet 3
-
-Rules
-
-• Use the headings exactly as shown above.
-
-• Leave one blank line after each heading.
-
-• Write one bullet per line and start new bullet point in the next following line.
-
-• Do not place multiple bullets on the same line.
-
-• Maximum 3 bullets under each heading.
-
-• Every point must be topic-specific.
-
-• Avoid generic educational statements.
-
-• Every bullet should be classroom observable.
-
-
-============================================================
-TOPIC-SPECIFIC TEACHING STRATEGIES
-============================================================
-
-Generate EXACTLY THREE teaching strategies.
-
-These strategies MUST feel unique to THIS lesson.
-
-Avoid generic strategies like
-
-• Think Pair Share
-• Visual Learning
-• Collaborative Learning
-• Inquiry Learning
-
-unless absolutely necessary.
-
-Good examples:
-
-Photosynthesis
-
-• Leaf Observation
-• Chloroplast Diagram Analysis
-• Plant Growth Prediction
-
-Electric Circuits
-
-• Circuit Assembly
-• Fault Detection
-• Current Flow Prediction
-
-Fractions
-
-• Fraction Strip Comparison
-• Pizza Slice Demonstration
-• Number Line Placement
-
-For every strategy generate
-
-Strategy Title
-
-Description
-
-Rules
-
-• Title should be short.
-
-• Description should be practical.
-
-• Maximum TWO concise sentences.
-
-============================================================
-LESSON FLOW
-============================================================
-
-The lesson MUST strictly follow ONLY the selected instructional framework.
-
-Generate the lesson using ONLY these framework stages.
-Lesson Flow Formatting
-Rules
-
-• Place the stage name on its own line.
-• Place "Estimated Time" on a separate line.
-• Place "Teacher Activities" on a separate line.
-• Do not merge headings onto the same line.
-
-For every framework stage, follow this format exactly.
-
-Stage Name
-
-Estimated Time: X minutes
-
-Teacher Activities
-
-• Activity 1
-• Activity 2
-• Activity 3
-
-============================================================
-FORMATTING RULES
-============================================================
-
-• Use proper Markdown formatting.
-
-• Every bullet must appear on a separate line.
-
-• Leave one blank line between headings and their content.
-
-• Never place multiple bullet points on the same line.
-
-• Preserve the requested section headings exactly.
-
-"""
-    for stage in stages:
-
-        prompt += f"""
-
-============================================================
-{stage.upper()}
-============================================================
-
-Estimated Time
-
-• Allocate an appropriate amount of time.
-
-• The total time across all stages should approximately equal the teacher's lesson duration.
-
-Teacher Activities
-
-• Maximum 2 concise bullet points.
-
-Student Activities
-
-• Maximum 2 concise bullet points.
-
-Quick Check
-
-• ONE formative assessment question.
-"""
-    prompt += """
-
-Lesson Flow Rules
-
-• Every stage must be concise.
-
-• Every activity should directly support the learning objectives.
-
-• Teacher actions should focus on facilitation.
-
-• Student actions should promote active participation.
-
-• Activities should be topic-specific.
-
-• Avoid repeating the same activity across stages.
-
-• Keep the lesson practical.
-
-• Do not generate unnecessary explanations.
-
-• The complete lesson flow should be easy to understand within a minute.
-Additional Rules
-
-• Use the official stage names of the selected instructional framework exactly as provided.
-
-• Do not rename framework stages.
-
-• Include an Estimated Time for every stage.
-
-• Ensure the sum of all stage durations approximately equals the teacher-specified lesson duration.
-
-• Time allocation should be pedagogically balanced.
-
-============================================================
-RESOURCES
-============================================================
-
-Generate ONLY resources that genuinely support the lesson.
-
-Teaching Materials
-
-• Maximum five bullets.
-
-Digital Resources
-
-• Include only when genuinely useful.
-
-Worksheets
-
-• Include only if appropriate.
-
-Rules
-
-• Recommend realistic classroom resources.
-
-• Avoid expensive or highly specialized equipment unless essential.
-
-"""
-    # --------------------------------------------------------
-    # Lesson Generation Instructions (Part C)
-    # --------------------------------------------------------
-    prompt += """
-
-============================================================
-ASSESSMENT
-============================================================
-
-Generate assessment methods that directly align with the learning objectives.
-
-Include the following sections.
-
-Quick Checks
-
-• Generate EXACTLY THREE short formative assessment questions.
-
-• Each question should assess understanding during different stages of the lesson.
-
-Exit Ticket
-
-• Generate EXACTLY ONE meaningful exit ticket question.
-
-Rules
-
-• Questions should encourage thinking rather than memorization.
-
-• Keep every question concise.
-
-• Avoid repeating the same concept.
-
-============================================================
-REFLECTION
-============================================================
-
-Generate EXACTLY TWO teacher reflection prompts.
-
-These prompts should help teachers reflect on
-
-• student engagement
-
-• learning effectiveness
-
-• instructional improvement
-
-Rules
-
-• One sentence each.
-
-• Practical and reflective.
-
-============================================================
-HOMEWORK
-============================================================
-
-Generate ONE meaningful extension activity.
-
-The homework should
-
-• reinforce classroom learning
-
-• encourage independent thinking
-
-• connect naturally with today's lesson
-
-Avoid repetitive textbook exercises unless appropriate.
-
-============================================================
-TEACHER NOTES
-============================================================
-
-Generate practical notes that may help the teacher during lesson delivery.
-
-Maximum THREE concise bullet points.
-
-Examples
-
-• differentiation reminders
-
-• classroom management tips
-
-• anticipated misconceptions
-
-• pacing reminders
-
-============================================================
-EDUCATIONAL QUALITY CHECKLIST
-============================================================
-
-Before finalizing the lesson, ensure that
-
-✓ Learning objectives satisfy SMART principles.
-
-✓ Bloom's Taxonomy is naturally integrated.
-
-✓ Merrill's First Principles are reflected where appropriate.
-
-✓ The selected instructional framework is followed completely.
-
-✓ Prior knowledge is activated.
-
-✓ Misconceptions are addressed.
-
-✓ Learning difficulties are considered.
-
-✓ Activities promote active learning.
-
-✓ Teaching strategies are topic-specific.
-
-✓ Assessment aligns with objectives.
-
-✓ Reflection supports continuous teacher improvement.
-
-✓ Homework meaningfully extends classroom learning.
-
-✓ The lesson is practical for real classroom implementation.
-
-✓ Educational quality is never sacrificed for brevity.
-
-============================================================
-FORMATTING REQUIREMENTS
-============================================================
-
-Return ONLY the completed lesson plan.
-
-Use EXACTLY these headings.
-
-LESSON SNAPSHOT
-
-LEARNING OBJECTIVES
-
-LEARNER SNAPSHOT
-
-TOPIC-SPECIFIC TEACHING STRATEGIES
-
-LESSON FLOW
-
-RESOURCES
-
-ASSESSMENT
-
-REFLECTION
-
-HOMEWORK
-
-TEACHER NOTES
-
-Never rename headings.
-
-Never change heading order.
-
-Do not add extra sections.
-
-Do not include markdown.
-
-Do not include code blocks.
-
-Do not include explanations.
-
-Return plain text only.
-
-Maintain consistent spacing throughout.
-
-============================================================
-FINAL SELF-VALIDATION
-============================================================
-
-Before returning the lesson verify that
-
-✓ Every required section is present.
-
-✓ Every framework stage is included.
-
-✓ The lesson strictly follows the selected instructional framework.
-
-✓ Teaching strategies are specific to the lesson topic.
-
-✓ Activities align with learning objectives.
-
-✓ Assessment aligns with objectives.
-
-✓ The lesson is concise.
-
-✓ The lesson is easy to scan.
-
-✓ The lesson is classroom-ready.
-
-Return ONLY the completed lesson plan.
-
+## Lesson Snapshot
 """
 
-    return call_gemini(
-        prompt=prompt,
-        model_name=DEFAULT_MODEL
-    )
-# ============================================================
+    return call_gemini(prompt)
+
 # AI Clarification Questions
 # ============================================================
-
 def generate_clarification_questions(
     grade_level,
     subject,
@@ -1327,16 +651,17 @@ def chat_with_generic_llm(chat_history):
     Generic-LLM experimental condition.
     """
 
-    system_prompt = """
-You are an experienced instructional designer and classroom teacher helping another teacher prepare a lesson.
+    system_prompt = """You are helping a teacher improve an existing lesson plan.
 
-Respond naturally and conversationally.
+Discuss requested changes naturally.
 
-Ask clarification questions whenever important information is missing.
+Explain how the lesson would be improved.
 
-When the teacher requests a lesson plan, generate a complete, classroom-ready lesson plan.
+Suggest ideas when appropriate.
+Do not organize lessons using predefined instructional frameworks (for example, the 5E model).
+Do not regenerate the complete lesson plan unless the teacher explicitly asks for the final lesson plan.
 
-Continue the conversation naturally using the previous conversation history.
+Remember all agreed changes throughout the conversation.
 """
 
     conversation = system_prompt + "\n\n"

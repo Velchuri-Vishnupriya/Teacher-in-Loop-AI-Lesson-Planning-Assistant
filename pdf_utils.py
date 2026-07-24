@@ -384,8 +384,7 @@ def build_generic_html(lesson_plan: str):
 
 def generate_pdf(lesson_plan):
 
-    html_content = build_html(lesson_plan)
-
+    html_content = build_generic_html(lesson_plan)
     buffer = BytesIO()
 
     pdf = pisa.CreatePDF(
