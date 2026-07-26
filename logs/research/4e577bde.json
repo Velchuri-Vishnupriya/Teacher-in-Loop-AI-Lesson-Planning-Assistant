@@ -1,0 +1,34 @@
+{
+    "teacher_name": "vishnu",
+    "condition": "Scaffolded",
+    "session_id": "4e577bde",
+    "timestamp": "2026-07-23 18:45:05",
+    "lesson_inputs": {
+        "grade_level": "8",
+        "subject": "Science",
+        "topic": "Electric Current",
+        "lesson_duration": "45 minutes",
+        "board": "CBSE",
+        "framework": "5E Model",
+        "learning_objective": "Learn",
+        "prior_knowledge": "",
+        "misconceptions": "",
+        "learning_difficulties": ""
+    },
+    "ai_suggestions": {
+        "learner_profile": ""
+    },
+    "teacher_additions": {
+        "prior_knowledge": "",
+        "misconceptions": "",
+        "learning_difficulties": ""
+    },
+    "clarification_questions": [],
+    "clarification_answers": [],
+    "conversation_history": [],
+    "lesson_plan": "",
+    "initial_lesson": "",
+    "final_lesson": "",
+    "refined_lesson": "",
+    "lesson_versions": []
+}
